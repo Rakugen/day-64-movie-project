@@ -5,10 +5,11 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, FloatField, IntegerField
 from wtforms.validators import DataRequired, URL, NumberRange
 import requests
+import config
 
 app = Flask(__name__)
 app.app_context().push()
-
+API_KEY = config.api_key
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///movies-collection.db"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
