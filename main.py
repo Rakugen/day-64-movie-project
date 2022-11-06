@@ -10,7 +10,7 @@ from wtforms.validators import DataRequired, NumberRange
 app = Flask(__name__)
 app.app_context().push()
 API_KEY = os.environ['API_KEY']
-API_ENDPOINT = "https://api.themoviedb.org/3/search/movie"
+API_ENDPOINT = "https://api.themoviedb.org/3/"
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///movies-collection.db"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -24,9 +24,9 @@ class Movie(db.Model):
     title = db.Column(db.String(250), unique=True, nullable=False)
     year = db.Column(db.Integer, nullable=False)
     description = db.Column(db.String(250), nullable=False)
-    rating = db.Column(db.Float, nullable=False)
-    ranking = db.Column(db.Integer, unique=True, nullable=False)
-    review = db.Column(db.String(250), nullable=False)
+    rating = db.Column(db.Float, nullable=True)
+    ranking = db.Column(db.Integer, unique=True, nullable=True)
+    review = db.Column(db.String(250), nullable=True)
     img_url = db.Column(db.String(250), nullable=False)
 
     def __repr__(self):
@@ -48,6 +48,31 @@ class EditForm(FlaskForm):
 db.create_all()
 
 
+# TODO: Create a function to handle API requests:
+@app.route("/movie_search/<int:movie_id>")
+def movie_search(movie_id):
+    print(f"MOVIE SEARCH ID: {movie_id}")
+    parameters = {
+        "api_key": API_KEY,
+        "movie_id": movie_id
+    }
+    movie_search_url = f"{API_ENDPOINT}/movie/{movie_id}"
+    response = requests.get(movie_search_url, params=parameters)
+    response.raise_for_status()
+    data = response.json()
+
+    new_movie = Movie(
+        title=data["original_title"],
+        img_url="https://image.tmdb.org/t/p/w300_and_h450_bestv2"+data["poster_path"],
+        year=data["release_date"],
+        description=data["overview"]
+    )
+    db.session.add(new_movie)
+    db.session.commit()
+
+    return redirect(url_for('home'))
+
+
 # ROUTES:
 @app.route("/")
 def home():
@@ -59,12 +84,15 @@ def home():
 def add():
     form = AddForm()
     if form.validate_on_submit():
-        # new_movie = Movie(
-        #     title=form.title.data,
-        # )
-        # db.session.add(new_movie)
-        # db.session.commit()
-        return redirect(url_for('select', title=form.title.data))
+        movie_title = form.title.data
+        parameters = {
+            "api_key": API_KEY,
+            "query": movie_title
+        }
+        response = requests.get(f"{API_ENDPOINT}/search/movie", params=parameters)
+        response.raise_for_status()
+        data = response.json()["results"]
+        return render_template("select.html", data=data)
     return render_template("add.html", form=form)
 
 
@@ -80,24 +108,23 @@ def edit(movie_id):
     return render_template("edit.html", movie=movie, form=form)
 
 
-@app.route("/select/<title>")
-def select(title):
-    # TODO: With title, search API and display the results in select.html
-    #  Within select.html, have working links that uses the ID of the movie
-    #  when clicked and will hit up another path in TMDB API, that will fetch
-    #  all data on that specific movie(title, img_url, year, description).
-    #  Once the entry is added, redirect to home
-    parameters = {
-        "api_key": API_KEY,
-        "query": title
-    }
-
-    response = requests.get(API_ENDPOINT, params=parameters)
-    response.raise_for_status()
-    data = response.json()
-    print(data)
-
-    return render_template("select.html", movies=data["results"])
+# @app.route("/select/<title>")
+# def select(title):
+#     # TODO: With title, search API and display the results in select.html
+#     #  Within select.html, have working links that uses the ID of the movie
+#     #  when clicked and will hit up another path in TMDB API, that will fetch
+#     #  all data on that specific movie(title, img_url, year, description).
+#     #  Once the entry is added, redirect to home
+#     parameters = {
+#         "api_key": API_KEY,
+#         "query": title
+#     }
+#
+#     response = requests.get(API_ENDPOINT, params=parameters)
+#     response.raise_for_status()
+#     data = response.json()
+#
+#     return render_template("select.html", movies=data["results"])
 
 
 @app.route("/delete/<movie_id>", methods=["GET"])
