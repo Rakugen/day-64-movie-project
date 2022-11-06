@@ -48,10 +48,8 @@ class EditForm(FlaskForm):
 db.create_all()
 
 
-# TODO: Create a function to handle API requests:
 @app.route("/movie_search/<int:movie_id>")
 def movie_search(movie_id):
-    print(f"MOVIE SEARCH ID: {movie_id}")
     parameters = {
         "api_key": API_KEY,
         "movie_id": movie_id
@@ -60,7 +58,6 @@ def movie_search(movie_id):
     response = requests.get(movie_search_url, params=parameters)
     response.raise_for_status()
     data = response.json()
-
     new_movie = Movie(
         title=data["original_title"],
         img_url="https://image.tmdb.org/t/p/w300_and_h450_bestv2"+data["poster_path"],
@@ -69,8 +66,8 @@ def movie_search(movie_id):
     )
     db.session.add(new_movie)
     db.session.commit()
-
-    return redirect(url_for('home'))
+    db.session.flush()
+    return redirect(url_for('edit', movie_id=new_movie.id))
 
 
 # ROUTES:
@@ -106,25 +103,6 @@ def edit(movie_id):
         db.session.commit()
         return redirect(url_for('home'))
     return render_template("edit.html", movie=movie, form=form)
-
-
-# @app.route("/select/<title>")
-# def select(title):
-#     # TODO: With title, search API and display the results in select.html
-#     #  Within select.html, have working links that uses the ID of the movie
-#     #  when clicked and will hit up another path in TMDB API, that will fetch
-#     #  all data on that specific movie(title, img_url, year, description).
-#     #  Once the entry is added, redirect to home
-#     parameters = {
-#         "api_key": API_KEY,
-#         "query": title
-#     }
-#
-#     response = requests.get(API_ENDPOINT, params=parameters)
-#     response.raise_for_status()
-#     data = response.json()
-#
-#     return render_template("select.html", movies=data["results"])
 
 
 @app.route("/delete/<movie_id>", methods=["GET"])
