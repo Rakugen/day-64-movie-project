@@ -25,7 +25,7 @@ class Movie(db.Model):
     year = db.Column(db.Integer, nullable=False)
     description = db.Column(db.String(250), nullable=False)
     rating = db.Column(db.Float, nullable=True)
-    ranking = db.Column(db.Integer, unique=True, nullable=True)
+    ranking = db.Column(db.Integer, nullable=True)
     review = db.Column(db.String(250), nullable=True)
     img_url = db.Column(db.String(250), nullable=False)
 
@@ -48,32 +48,20 @@ class EditForm(FlaskForm):
 db.create_all()
 
 
-@app.route("/movie_search/<int:movie_id>")
-def movie_search(movie_id):
-    parameters = {
-        "api_key": API_KEY,
-        "movie_id": movie_id
-    }
-    movie_search_url = f"{API_ENDPOINT}/movie/{movie_id}"
-    response = requests.get(movie_search_url, params=parameters)
-    response.raise_for_status()
-    data = response.json()
-    new_movie = Movie(
-        title=data["original_title"],
-        img_url="https://image.tmdb.org/t/p/w300_and_h450_bestv2"+data["poster_path"],
-        year=data["release_date"],
-        description=data["overview"]
-    )
-    db.session.add(new_movie)
-    db.session.commit()
-    db.session.flush()
-    return redirect(url_for('edit', movie_id=new_movie.id))
-
-
 # ROUTES:
 @app.route("/")
 def home():
-    all_movies = db.session.query(Movie).all()
+    all_movies = Movie.query.order_by(Movie.rating).all()
+
+    for i in range(len(all_movies)):
+        all_movies[i].ranking = len(all_movies) - i
+
+    # for index, movie in enumerate(all_movies):
+    #     movie.ranking = len(all_movies) - index
+
+    db.session.commit()
+    all_movies = Movie.query.order_by(Movie.ranking).all()
+
     return render_template("index.html", movies=all_movies)
 
 
@@ -103,6 +91,28 @@ def edit(movie_id):
         db.session.commit()
         return redirect(url_for('home'))
     return render_template("edit.html", movie=movie, form=form)
+
+
+@app.route("/movie_search/<int:movie_id>")
+def movie_search(movie_id):
+    parameters = {
+        "api_key": API_KEY,
+        "movie_id": movie_id
+    }
+    movie_search_url = f"{API_ENDPOINT}/movie/{movie_id}"
+    response = requests.get(movie_search_url, params=parameters)
+    response.raise_for_status()
+    data = response.json()
+    new_movie = Movie(
+        title=data["original_title"],
+        img_url="https://image.tmdb.org/t/p/w300_and_h450_bestv2"+data["poster_path"],
+        year=data["release_date"],
+        description=data["overview"]
+    )
+    db.session.add(new_movie)
+    db.session.commit()
+    db.session.flush()
+    return redirect(url_for('edit', movie_id=new_movie.id))
 
 
 @app.route("/delete/<movie_id>", methods=["GET"])
